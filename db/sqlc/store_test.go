@@ -120,7 +120,7 @@ func TestTransferTxDeadlock(t *testing.T) {
 	account2 := createRandomAccount(t)
 
 	fmt.Println(">> before: ", account1.Balance, account2.Balance)
-	// run n current tranfer transactions
+	// run n current transfer transactions
 	n := 10
 	amount := int64(10)
 
