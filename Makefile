@@ -2,14 +2,14 @@ startdb:
 	docker compose up -d
 	
 migrate:
-	@source .env && \
+	@eval "$$(cat .env)" && \
 	if [ -z "$$DB_URL" ]; then \
 		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@$$DB_HOST:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
 	fi && \
 	migrate -path db/migrations -database "$$DB_URL" -verbose up
 
 rollback:
-	@source .env && \
+	@eval "$$(cat .env)" && \
 	if [ -z "$$DB_URL" ]; then \
 		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@$$DB_HOST:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
 	fi && \
