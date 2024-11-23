@@ -47,7 +47,11 @@ jobs:
             which migrate
 
       - name: Run DB Migrations
-        run: make migrate
+        run: |
+          set -a
+          source .env
+          set +a          
+          make migrate
 
       - name: Test
         run: make test
