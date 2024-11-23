@@ -44,17 +44,6 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
-		result.FromAccount, err = q.GetAccount(ctx, arg.FromAccountID)
-
-		if err != nil {
-			return err
-		}
-
-		result.ToAccount, err = q.GetAccount(ctx, arg.ToAccountID)
-
-		if err != nil {
-			return err
-		}
 
 		result.Transfer, err = q.CreateTransfer(ctx, CreateTransferParams{
 			FromAccountID: arg.FromAccountID,
@@ -62,7 +51,6 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			Amount:        int64(arg.Amount),
 			PublicID:      uuid.New().String(),
 		})
-
 		if err != nil {
 			return err
 		}
@@ -74,7 +62,6 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			PublicID:    uuid.New().String(),
 			LastBalance: result.FromAccount.Balance,
 		})
-
 		if err != nil {
 			return err
 		}
@@ -86,16 +73,55 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			PublicID:    uuid.New().String(),
 			LastBalance: result.ToAccount.Balance,
 		})
-
 		if err != nil {
 			return err
 		}
 
-		// TODO: Update account balances'
+		if arg.FromAccountID < arg.ToAccountID {
+			result.FromAccount, result.ToAccount, err = addMoney(ctx, q, arg.FromAccountID, -int64(arg.Amount), arg.ToAccountID, int64(arg.Amount))
+			if err != nil {
+				return err
+			}
+		} else {
+			result.ToAccount, result.FromAccount, err = addMoney(ctx, q, arg.ToAccountID, int64(arg.Amount), arg.FromAccountID, -int64(arg.Amount))
+			if err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
 	return result, err
+}
+
+func addMoney(
+	ctx context.Context,
+	q *Queries,
+	accountID1 int32,
+	amount1 int64,
+	accountID2 int32,
+	amount2 int64,
+) (account1, account2 Account, err error) {
+	account1, err = q.AddAccountBalance(ctx, AddAccountBalanceParams{
+		ID:     int32(accountID1),
+		Amount: amount1,
+	})
+
+	if err != nil {
+		return
+	}
+
+	account2, err = q.AddAccountBalance(ctx, AddAccountBalanceParams{
+		ID:     int32(accountID2),
+		Amount: amount2,
+	})
+
+	if err != nil {
+		return
+	}
+
+	return
 }
 
 func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {

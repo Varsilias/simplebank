@@ -39,7 +39,7 @@ func RandomName() string {
 
 // RandomAmount generates a random amount of money
 func RandomAmount() int64 {
-	return RandomInt(0, 1000)
+	return RandomInt(100, 1000)
 }
 
 // RandomCurrency generates a random currency code

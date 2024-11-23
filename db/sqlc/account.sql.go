@@ -9,6 +9,36 @@ import (
 	"context"
 )
 
+const addAccountBalance = `-- name: AddAccountBalance :one
+UPDATE accounts
+SET balance = balance + $1
+WHERE id = $2
+RETURNING id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency
+`
+
+type AddAccountBalanceParams struct {
+	Amount int64 `json:"amount"`
+	ID     int32 `json:"id"`
+}
+
+func (q *Queries) AddAccountBalance(ctx context.Context, arg AddAccountBalanceParams) (Account, error) {
+	row := q.db.QueryRowContext(ctx, addAccountBalance, arg.Amount, arg.ID)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.IsBlocked,
+		&i.BlockedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.Balance,
+		&i.Currency,
+	)
+	return i, err
+}
+
 const createAccount = `-- name: CreateAccount :one
 INSERT INTO accounts (
   public_id, user_id, balance, currency
@@ -20,7 +50,7 @@ INSERT INTO accounts (
 type CreateAccountParams struct {
 	PublicID string `json:"public_id"`
 	UserID   int32  `json:"user_id"`
-	Balance  string `json:"balance"`
+	Balance  int64  `json:"balance"`
 	Currency string `json:"currency"`
 }
 
@@ -102,6 +132,30 @@ func (q *Queries) GetAccountByUserId(ctx context.Context, userID int32) (Account
 	return i, err
 }
 
+const getAccountForUpdate = `-- name: GetAccountForUpdate :one
+SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
+WHERE id = $1 LIMIT 1
+FOR NO KEY UPDATE
+`
+
+func (q *Queries) GetAccountForUpdate(ctx context.Context, id int32) (Account, error) {
+	row := q.db.QueryRowContext(ctx, getAccountForUpdate, id)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.IsBlocked,
+		&i.BlockedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.Balance,
+		&i.Currency,
+	)
+	return i, err
+}
+
 const listAccounts = `-- name: ListAccounts :many
 SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
 ORDER BY id
@@ -156,8 +210,8 @@ RETURNING id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted
 `
 
 type UpdateAccountParams struct {
-	ID      int32  `json:"id"`
-	Balance string `json:"balance"`
+	ID      int32 `json:"id"`
+	Balance int64 `json:"balance"`
 }
 
 func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) (Account, error) {

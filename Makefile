@@ -4,14 +4,14 @@ startdb:
 migrate:
 	@source .env && \
 	if [ -z "$$DB_URL" ]; then \
-		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@localhost:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
+		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@$$DB_HOST:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
 	fi && \
 	migrate -path db/migrations -database "$$DB_URL" -verbose up
 
 rollback:
 	@source .env && \
 	if [ -z "$$DB_URL" ]; then \
-		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@localhost:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
+		DB_URL="postgresql://$$DB_USER:$$DB_PASSWORD@$$DB_HOST:$$DB_PORT/$$DB_NAME?sslmode=disable"; \
 	fi && \
 	migrate -path db/migrations -database "$$DB_URL" -verbose down
 

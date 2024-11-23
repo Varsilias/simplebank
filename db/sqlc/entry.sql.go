@@ -22,7 +22,7 @@ type CreateEntryParams struct {
 	AccountID   int32     `json:"account_id"`
 	Amount      int64     `json:"amount"`
 	Type        EntryType `json:"type"`
-	LastBalance string    `json:"last_balance"`
+	LastBalance int64     `json:"last_balance"`
 }
 
 func (q *Queries) CreateEntry(ctx context.Context, arg CreateEntryParams) (Entry, error) {

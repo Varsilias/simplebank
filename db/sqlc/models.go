@@ -62,7 +62,7 @@ type Account struct {
 	UpdatedAt time.Time    `json:"updated_at"`
 	DeletedAt sql.NullTime `json:"deleted_at"`
 	UserID    int32        `json:"user_id"`
-	Balance   string       `json:"balance"`
+	Balance   int64        `json:"balance"`
 	Currency  string       `json:"currency"`
 }
 
@@ -76,7 +76,7 @@ type Entry struct {
 	// can be negative or positive
 	Amount      int64     `json:"amount"`
 	Type        EntryType `json:"type"`
-	LastBalance string    `json:"last_balance"`
+	LastBalance int64     `json:"last_balance"`
 }
 
 type Transfer struct {

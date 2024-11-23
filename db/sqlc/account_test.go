@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"testing"
 	"time"
 
@@ -46,7 +45,7 @@ func TestUpdateAccount(t *testing.T) {
 
 	args := UpdateAccountParams{
 		ID:      account1.ID,
-		Balance: fmt.Sprintf("%.2f", float64(utils.RandomAmount())),
+		Balance: utils.RandomAmount(),
 	}
 
 	account2, err := testQueries.UpdateAccount(context.Background(), args)
@@ -98,7 +97,7 @@ func createRandomAccount(t *testing.T) Account {
 	args := CreateAccountParams{
 		PublicID: utils.RandomString(26),
 		UserID:   user.ID,
-		Balance:  fmt.Sprintf("%.2f", float64(utils.RandomAmount())),
+		Balance:  utils.RandomAmount(),
 		Currency: utils.RandomCurrency(),
 	}
 

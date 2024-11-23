@@ -30,7 +30,7 @@ CREATE TABLE "accounts" (
   "updated_at" timestamptz NOT NULL DEFAULT (now()),
   "deleted_at" timestamptz,
   "user_id" int NOT NULL,
-  "balance" decimal(18,2) NOT NULL,
+  "balance" bigint NOT NULL,
   "currency" varchar NOT NULL
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE "entries" (
   "deleted_at" timestamptz,
   "amount" bigint NOT NULL,
   "type" entry_type NOT NULL,
-  "last_balance" decimal(18,2) NOT NULL
+  "last_balance" bigint NOT NULL
 );
 
 CREATE TABLE "transfers" (
