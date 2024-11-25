@@ -11,17 +11,15 @@ import (
 	"github.com/varsilias/simplebank/utils"
 )
 
-const (
-	dbDriver = "postgres"
-	dbSource = "postgresql://simplebank:SimpleBank1234@localhost:5432/simplebank?sslmode=disable"
-)
-
 var testQueries *Queries
 var testDB *sql.DB
 
 func TestMain(m *testing.M) {
-	var err error
-	testDB, err = sql.Open(dbDriver, dbSource)
+	config, err := utils.LoadConfig("../../test.env")
+	if err != nil {
+		log.Fatal("TEST: could not load config:", err)
+	}
+	testDB, err = sql.Open(config.DBDriver, config.DBUrl)
 
 	if err != nil {
 		log.Fatal("could not connect to database: ", err)
