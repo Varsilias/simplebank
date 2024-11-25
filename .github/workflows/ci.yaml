@@ -39,8 +39,8 @@ jobs:
 
       - name: Create env file
         run: |
-            echo "${{ secrets.TEST_ENV_FILE }}" > test.env
-            cat test.env
+            echo "${{ secrets.TEST_ENV_FILE }}" > .env
+            cat .env
 
       - name: Install golang-migrate
         run: | 
