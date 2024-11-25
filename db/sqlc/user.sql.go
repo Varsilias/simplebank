@@ -93,6 +93,34 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	return i, err
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, firstname, lastname, email, password, salt, security_token, email_confirmed, security_token_requested_at FROM users
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.IsBlocked,
+		&i.BlockedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Firstname,
+		&i.Lastname,
+		&i.Email,
+		&i.Password,
+		&i.Salt,
+		&i.SecurityToken,
+		&i.EmailConfirmed,
+		&i.SecurityTokenRequestedAt,
+	)
+	return i, err
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, firstname, lastname, email, password, salt, security_token, email_confirmed, security_token_requested_at FROM users
 ORDER BY id
@@ -111,7 +139,7 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]User, e
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	items := []User{}
 	for rows.Next() {
 		var i User
 		if err := rows.Scan(

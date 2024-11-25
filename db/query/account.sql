@@ -9,6 +9,10 @@ INSERT INTO accounts (
 SELECT * FROM accounts
 WHERE id = $1 LIMIT 1;
 
+-- name: GetAccountByPublicId :one
+SELECT * FROM accounts
+WHERE public_id = sqlc.arg(public_id) LIMIT 1;
+
 -- name: GetAccountForUpdate :one
 SELECT * FROM accounts
 WHERE id = $1 LIMIT 1

@@ -109,6 +109,29 @@ func (q *Queries) GetAccount(ctx context.Context, id int32) (Account, error) {
 	return i, err
 }
 
+const getAccountByPublicId = `-- name: GetAccountByPublicId :one
+SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
+WHERE public_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetAccountByPublicId(ctx context.Context, publicID string) (Account, error) {
+	row := q.db.QueryRowContext(ctx, getAccountByPublicId, publicID)
+	var i Account
+	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.IsBlocked,
+		&i.BlockedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.Balance,
+		&i.Currency,
+	)
+	return i, err
+}
+
 const getAccountByUserId = `-- name: GetAccountByUserId :one
 SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
 WHERE user_id = $1 LIMIT 1
@@ -174,7 +197,7 @@ func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]A
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Account
+	items := []Account{}
 	for rows.Next() {
 		var i Account
 		if err := rows.Scan(

@@ -24,4 +24,8 @@ test:
 env:
 	cp .env.example .env
 
-.PHONY: startdb migrate rollback sqlc test env
+server:
+	go run main.go
+
+
+.PHONY: startdb migrate rollback sqlc test env server
