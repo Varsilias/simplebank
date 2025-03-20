@@ -3,13 +3,14 @@ package api
 import (
 	"database/sql"
 	"errors"
+	"log"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	db "github.com/varsilias/simplebank/db/sqlc"
 	"github.com/varsilias/simplebank/utils"
-	"log"
-	"net/http"
-	"time"
 )
 
 type createUserRequest struct {
@@ -17,7 +18,7 @@ type createUserRequest struct {
 	Lastname  string `json:"lastname" binding:"required,min=3"`
 	Email     string `json:"email" binding:"required,email"`
 	Password  string `json:"password" binding:"required,min=8"`
-	Currency  string `json:"currency" binding:"required,oneof=USD EUR GBP NGN"`
+	Currency  string `json:"currency" binding:"required,currency"`
 }
 
 type createUserResponse struct {

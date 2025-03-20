@@ -27,5 +27,8 @@ env:
 server:
 	go run main.go
 
+mock:
+	mockgen -destination db/mock/store.go -package mockdb github.com/varsilias/simplebank/db/sqlc Store
 
-.PHONY: startdb migrate rollback sqlc test env server
+
+.PHONY: startdb migrate rollback sqlc test env server mock

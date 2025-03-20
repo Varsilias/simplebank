@@ -3,12 +3,13 @@ package api
 import (
 	"database/sql"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
-	db "github.com/varsilias/simplebank/db/sqlc"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	db "github.com/varsilias/simplebank/db/sqlc"
 )
 
 type createAccountResponse struct {
@@ -26,8 +27,8 @@ type createAccountResponse struct {
 
 // createAccountRequest is the type for creating a new account
 type createAccountRequest struct {
-	UserID   int32  `json:"user_id"`
-	Currency string `json:"currency"`
+	UserID   int32  `json:"user_id" binding:"required,min=1"`
+	Currency string `json:"currency" binding:"required,oneof=USD EUR NGN GBP"`
 }
 
 func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs createAccountRequest) (*createAccountResponse, error) {
@@ -57,7 +58,7 @@ func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs 
 }
 
 type getAccountRequest struct {
-	PublicID string `uri:"public_id" binding:"required"`
+	PublicID string `uri:"public_id" binding:"required,uuid4"`
 }
 
 func (server *Server) getAccount(ctx *gin.Context) {
@@ -65,6 +66,7 @@ func (server *Server) getAccount(ctx *gin.Context) {
 	err := ctx.ShouldBindUri(&req)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, errorResponse(http.StatusBadRequest, ctx.Request.URL.Path, err))
+		return
 	}
 
 	account, err := server.store.GetAccountByPublicId(ctx, req.PublicID)

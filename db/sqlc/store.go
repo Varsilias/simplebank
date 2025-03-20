@@ -9,14 +9,20 @@ import (
 )
 
 // Store provide all functions to execute db queries and transactions
-type Store struct {
+type Store interface {
+	TransferTx(ctx context.Context, arg TransferTxParams) (TransferTxResult, error)
+	Querier
+}
+
+// SQLStore provide all functions to execute SQL queries and transactions
+type SQLStore struct {
 	*Queries
 	db *sql.DB
 }
 
 // NewStore creates a new store
-func NewStore(db *sql.DB) *Store {
-	return &Store{
+func NewStore(db *sql.DB) Store {
+	return &SQLStore{
 		db:      db,
 		Queries: New(db),
 	}
@@ -39,11 +45,21 @@ type TransferTxResult struct {
 // TransferTx performs money transfer from one account to another
 // It creates a transfer record, add account entries and update accounts' balance
 // Within a single transaction
-func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (TransferTxResult, error) {
+func (store *SQLStore) TransferTx(ctx context.Context, arg TransferTxParams) (TransferTxResult, error) {
 	var result TransferTxResult
 
 	err := store.execTx(ctx, func(q *Queries) error {
 		var err error
+
+		fromAccount, err := q.GetAccount(ctx, arg.FromAccountID)
+		if err != nil {
+			return err
+		}
+
+		toAccount, err := q.GetAccount(ctx, arg.ToAccountID)
+		if err != nil {
+			return err
+		}
 
 		result.Transfer, err = q.CreateTransfer(ctx, CreateTransferParams{
 			FromAccountID: arg.FromAccountID,
@@ -60,7 +76,7 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			Amount:      -int64(arg.Amount),
 			Type:        EntryTypeDEBIT,
 			PublicID:    uuid.New().String(),
-			LastBalance: result.FromAccount.Balance,
+			LastBalance: fromAccount.Balance,
 		})
 		if err != nil {
 			return err
@@ -71,7 +87,7 @@ func (store *Store) TransferTx(ctx context.Context, arg TransferTxParams) (Trans
 			Amount:      int64(arg.Amount),
 			Type:        EntryTypeCREDIT,
 			PublicID:    uuid.New().String(),
-			LastBalance: result.ToAccount.Balance,
+			LastBalance: toAccount.Balance,
 		})
 		if err != nil {
 			return err
@@ -124,7 +140,7 @@ func addMoney(
 	return
 }
 
-func (store *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
+func (store *SQLStore) execTx(ctx context.Context, fn func(*Queries) error) error {
 	tx, err := store.db.BeginTx(ctx, nil)
 
 	if err != nil {
