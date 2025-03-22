@@ -3,12 +3,14 @@ package api
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	db "github.com/varsilias/simplebank/db/sqlc"
 )
 
@@ -28,7 +30,7 @@ type createAccountResponse struct {
 // createAccountRequest is the type for creating a new account
 type createAccountRequest struct {
 	UserID   int32  `json:"user_id" binding:"required,min=1"`
-	Currency string `json:"currency" binding:"required,oneof=USD EUR NGN GBP"`
+	Currency string `json:"currency" binding:"required,currency"`
 }
 
 func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs createAccountRequest) (*createAccountResponse, error) {
@@ -55,6 +57,50 @@ func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs 
 	account, err = server.store.CreateAccount(ctx, args)
 
 	return toAccountResponse(account), err
+}
+
+func (server *Server) createAccount(ctx *gin.Context) {
+	var req createAccountRequest
+	err := ctx.ShouldBindJSON(&req)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(http.StatusBadRequest, ctx.Request.URL.Path, err))
+		return
+	}
+
+	user, err := server.store.GetUser(ctx, req.UserID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = fmt.Errorf("user with id [%d] not found", req.UserID)
+			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
+	account, err := server.store.CreateAccount(ctx, db.CreateAccountParams{
+		PublicID: uuid.New().String(),
+		UserID:   user.ID,
+		Balance:  0,
+		Currency: req.Currency,
+	})
+
+	if err != nil {
+		log.Println(err)
+		if pqErr, ok := err.(*pq.Error); ok {
+			switch pqErr.Code.Name() {
+			case "unique_violation":
+				clientErr := fmt.Errorf("user already has an account with currency: [%s]", req.Currency)
+				ctx.JSON(http.StatusConflict, errorResponse(http.StatusConflict, ctx.Request.URL.Path, clientErr))
+				return
+			}
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, successResponse(toAccountResponse(account)))
 }
 
 type getAccountRequest struct {

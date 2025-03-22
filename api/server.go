@@ -37,6 +37,7 @@ func NewServer(store db.Store) *Server {
 	// Bank Account Management
 	router.GET("/accounts/:public_id", server.getAccount)
 	router.GET("/accounts", server.listAccounts)
+	router.POST("/accounts", server.createAccount)
 
 	// Transfers
 	router.POST("/transfers", server.createTransfer)
@@ -49,10 +50,10 @@ func (server *Server) Start(address string) error {
 }
 func errorResponse(statusCode int, requestPath string, err error) gin.H {
 	return gin.H{
-		"timestamp":  time.Now(),
-		"path":       requestPath,
-		"message":    err.Error(),
-		"statusCode": statusCode,
+		"timestamp":   time.Now(),
+		"path":        requestPath,
+		"message":     err.Error(),
+		"status_code": statusCode,
 	}
 }
 

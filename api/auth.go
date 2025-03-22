@@ -1,7 +1,7 @@
 package api
 
 import (
-	"database/sql"
+	// "database/sql"
 	"errors"
 	"log"
 	"net/http"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	db "github.com/varsilias/simplebank/db/sqlc"
 	"github.com/varsilias/simplebank/utils"
 )
@@ -48,21 +49,6 @@ func (server *Server) registerUser(ctx *gin.Context) {
 		return
 	}
 
-	userExists, err := server.store.GetUserByEmail(ctx, req.Email)
-	if err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			log.Println("Error Getting user: ", err)
-			ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
-			return
-		}
-	}
-
-	var emptyUser db.User
-	if userExists != emptyUser {
-		ctx.JSON(http.StatusConflict, errorResponse(http.StatusConflict, ctx.Request.URL.Path, errors.New("user already exists")))
-		return
-	}
-
 	if !utils.IsValidPassword(req.Password) {
 		ctx.JSON(http.StatusBadRequest, errorResponse(http.StatusBadRequest, ctx.Request.URL.Path, errors.New("password must be at least 8 characters long, contain 1 uppercase, 1 lowercase, 1 special character and a numbe")))
 		return
@@ -87,10 +73,20 @@ func (server *Server) registerUser(ctx *gin.Context) {
 	user, err := server.store.CreateUser(ctx, arg)
 	if err != nil {
 		log.Println(err)
+		if pqErr, ok := err.(*pq.Error); ok {
+			log.Println(pqErr.Code.Name())
+			switch pqErr.Code.Name() {
+			case "unique_violation":
+				ctx.JSON(http.StatusConflict, errorResponse(http.StatusConflict, ctx.Request.URL.Path, errors.New("user already exist, proceed to create an account")))
+				return
+			}
+		}
 		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
 		return
 	}
 
+	// At this point we can always guarantee that the account created at this point will not violate
+	// the unique constraint on user_id,currency in the accounts table
 	account, err := server.createAccountWithArgs(ctx, createAccountRequest{
 		UserID:   user.ID,
 		Currency: req.Currency,

@@ -22,6 +22,10 @@ FOR NO KEY UPDATE;
 SELECT * FROM accounts
 WHERE user_id = $1 LIMIT 1;
 
+-- name: GetAllUserAccounts :many
+SELECT * FROM accounts
+WHERE user_id = $1;
+
 -- name: ListAccounts :many
 SELECT * FROM accounts
 ORDER BY id

@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS accounts_user_id_currency_idx;

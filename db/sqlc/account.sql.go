@@ -179,6 +179,45 @@ func (q *Queries) GetAccountForUpdate(ctx context.Context, id int32) (Account, e
 	return i, err
 }
 
+const getAllUserAccounts = `-- name: GetAllUserAccounts :many
+SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
+WHERE user_id = $1
+`
+
+func (q *Queries) GetAllUserAccounts(ctx context.Context, userID int32) ([]Account, error) {
+	rows, err := q.db.QueryContext(ctx, getAllUserAccounts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Account{}
+	for rows.Next() {
+		var i Account
+		if err := rows.Scan(
+			&i.ID,
+			&i.PublicID,
+			&i.IsBlocked,
+			&i.BlockedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.UserID,
+			&i.Balance,
+			&i.Currency,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAccounts = `-- name: ListAccounts :many
 SELECT id, public_id, is_blocked, blocked_at, created_at, updated_at, deleted_at, user_id, balance, currency FROM accounts
 ORDER BY id
