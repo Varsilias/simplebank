@@ -1,7 +1,6 @@
 package api
 
 import (
-	// "database/sql"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -89,7 +88,7 @@ func (server *Server) registerUser(ctx *gin.Context) {
 
 	// At this point we can always guarantee that the account created at this point will not violate
 	// the unique constraint on user_id,currency in the accounts table
-	account, err := server.createAccountWithArgs(ctx, createAccountRequest{
+	account, err := server.createAccountWithArgs(ctx, createAccountWithArgsRequest{
 		UserID:   user.ID,
 		Currency: req.Currency,
 	})

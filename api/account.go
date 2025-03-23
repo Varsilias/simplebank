@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 	db "github.com/varsilias/simplebank/db/sqlc"
+	"github.com/varsilias/simplebank/token"
 )
 
 type createAccountResponse struct {
@@ -28,12 +29,12 @@ type createAccountResponse struct {
 }
 
 // createAccountRequest is the type for creating a new account
-type createAccountRequest struct {
+type createAccountWithArgsRequest struct {
 	UserID   int32  `json:"user_id" binding:"required,min=1"`
 	Currency string `json:"currency" binding:"required,currency"`
 }
 
-func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs createAccountRequest) (*createAccountResponse, error) {
+func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs createAccountWithArgsRequest) (*createAccountResponse, error) {
 	var account db.Account
 	accountExists, err := server.store.GetAccountByUserId(ctx, createAccountArgs.UserID)
 	if err != nil {
@@ -59,6 +60,10 @@ func (server *Server) createAccountWithArgs(ctx *gin.Context, createAccountArgs 
 	return toAccountResponse(account), err
 }
 
+type createAccountRequest struct {
+	Currency string `json:"currency" binding:"required,currency"`
+}
+
 func (server *Server) createAccount(ctx *gin.Context) {
 	var req createAccountRequest
 	err := ctx.ShouldBindJSON(&req)
@@ -67,10 +72,12 @@ func (server *Server) createAccount(ctx *gin.Context) {
 		return
 	}
 
-	user, err := server.store.GetUser(ctx, req.UserID)
+	authPayload := ctx.MustGet(authorisationKey).(*token.Payload)
+
+	user, err := server.store.GetUserByPublicID(ctx, authPayload.PublicID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			err = fmt.Errorf("user with id [%d] not found", req.UserID)
+			err = fmt.Errorf("user with id [%s] not found", authPayload.PublicID)
 			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
 			return
 		}
@@ -115,6 +122,20 @@ func (server *Server) getAccount(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(authorisationKey).(*token.Payload)
+
+	user, err := server.store.GetUserByPublicID(ctx, authPayload.PublicID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = fmt.Errorf("user with id [%s] not found", authPayload.PublicID)
+			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
 	account, err := server.store.GetAccountByPublicId(ctx, req.PublicID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -126,6 +147,11 @@ func (server *Server) getAccount(ctx *gin.Context) {
 		return
 	}
 
+	if account.UserID != user.ID {
+		err := errors.New("account does not belong to the authenticated user")
+		ctx.JSON(http.StatusForbidden, errorResponse(http.StatusForbidden, ctx.Request.URL.Path, err))
+		return
+	}
 	ctx.JSON(http.StatusOK, successResponse(toAccountResponse(account)))
 }
 
@@ -142,9 +168,23 @@ func (server *Server) listAccounts(ctx *gin.Context) {
 		return
 	}
 
+	authPayload := ctx.MustGet(authorisationKey).(*token.Payload)
+
+	user, err := server.store.GetUserByPublicID(ctx, authPayload.PublicID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = fmt.Errorf("user with id [%s] not found", authPayload.PublicID)
+			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
 	args := db.ListAccountsParams{
 		Limit:  req.PageSize,
 		Offset: (req.Page - 1) * req.PageSize,
+		UserID: user.ID,
 	}
 
 	accounts, err := server.store.ListAccounts(ctx, args)

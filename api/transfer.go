@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	db "github.com/varsilias/simplebank/db/sqlc"
+	"github.com/varsilias/simplebank/token"
 )
 
 type createTransferTxResponse struct {
@@ -34,11 +35,32 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 		return
 	}
 
-	if !server.validAccount(ctx, int32(req.FromAccountID), req.Currency) {
+	authPayload := ctx.MustGet(authorisationKey).(*token.Payload)
+	user, err := server.store.GetUserByPublicID(ctx, authPayload.PublicID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			err = fmt.Errorf("user with id [%s] not found", authPayload.PublicID)
+			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
+			return
+		}
+
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
 		return
 	}
 
-	if !server.validAccount(ctx, int32(req.ToAccountID), req.Currency) {
+	fromAccount, valid := server.validAccount(ctx, int32(req.FromAccountID), req.Currency)
+	if !valid {
+		return
+	}
+
+	if fromAccount.UserID != user.ID {
+		err := errors.New("from account does not belong to the authenticated user")
+		ctx.JSON(http.StatusForbidden, errorResponse(http.StatusForbidden, ctx.Request.URL.Path, err))
+		return
+	}
+
+	_, valid = server.validAccount(ctx, int32(req.ToAccountID), req.Currency)
+	if !valid {
 		return
 	}
 
@@ -57,27 +79,27 @@ func (server *Server) createTransfer(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, successResponse(toTransferTxResponse(result)))
 }
 
-func (server *Server) validAccount(ctx *gin.Context, accountID int32, currency string) bool {
+func (server *Server) validAccount(ctx *gin.Context, accountID int32, currency string) (db.Account, bool) {
 	account, err := server.store.GetAccount(ctx, accountID)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			ctx.JSON(http.StatusNotFound, errorResponse(http.StatusNotFound, ctx.Request.URL.Path, err))
-			return false
+			return account, false
 		}
 
 		log.Println("Error getting account: ", err)
 		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
-		return false
+		return account, false
 	}
 
 	if account.Currency != currency {
 		err := fmt.Errorf("account [%d] currency mismatch: %s vs %s", account.ID, account.Currency, currency)
 		ctx.JSON(http.StatusBadRequest, errorResponse(http.StatusBadRequest, ctx.Request.URL.Path, err))
-		return false
+		return account, false
 	}
 
-	return true
+	return account, true
 }
 
 func toTransferTxResponse(transferTxResult db.TransferTxResult) *createTransferTxResponse {

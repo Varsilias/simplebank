@@ -56,7 +56,7 @@ func EqCreateUserParams(args db.CreateUserParams, password string) gomock.Matche
 func TestRegisterUserAPI(t *testing.T) {
 	user, password := createRandomUser(t)
 	currency := utils.RandomCurrency()
-	account := createRandomAccount()
+	account := createRandomAccount(user.ID)
 
 	testCases := []struct {
 		name          string

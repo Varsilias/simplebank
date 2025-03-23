@@ -352,6 +352,21 @@ func (mr *MockStoreMockRecorder) GetUserByEmail(ctx, email any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByEmail", reflect.TypeOf((*MockStore)(nil).GetUserByEmail), ctx, email)
 }
 
+// GetUserByPublicID mocks base method.
+func (m *MockStore) GetUserByPublicID(ctx context.Context, publicID string) (db.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByPublicID", ctx, publicID)
+	ret0, _ := ret[0].(db.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByPublicID indicates an expected call of GetUserByPublicID.
+func (mr *MockStoreMockRecorder) GetUserByPublicID(ctx, publicID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByPublicID", reflect.TypeOf((*MockStore)(nil).GetUserByPublicID), ctx, publicID)
+}
+
 // ListAccounts mocks base method.
 func (m *MockStore) ListAccounts(ctx context.Context, arg db.ListAccountsParams) ([]db.Account, error) {
 	m.ctrl.T.Helper()

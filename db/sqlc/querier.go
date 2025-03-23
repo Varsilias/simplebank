@@ -30,6 +30,7 @@ type Querier interface {
 	GetTransferByToAccountId(ctx context.Context, toAccountID int32) (Transfer, error)
 	GetUser(ctx context.Context, id int32) (User, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
+	GetUserByPublicID(ctx context.Context, publicID string) (User, error)
 	ListAccounts(ctx context.Context, arg ListAccountsParams) ([]Account, error)
 	ListEntries(ctx context.Context, arg ListEntriesParams) ([]Entry, error)
 	ListEntriesForAccountId(ctx context.Context, arg ListEntriesForAccountIdParams) ([]Entry, error)

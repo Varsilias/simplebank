@@ -9,21 +9,25 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	mockdb "github.com/varsilias/simplebank/db/mock"
 	db "github.com/varsilias/simplebank/db/sqlc"
+	"github.com/varsilias/simplebank/token"
 	"github.com/varsilias/simplebank/utils"
 	"go.uber.org/mock/gomock"
 )
 
 func TestGetAccountAPI(t *testing.T) {
-	account := createRandomAccount()
+	user, _ := createRandomUser(t)
+	account := createRandomAccount(user.ID)
 
 	testCases := []struct {
 		name            string
 		accountPublicID string
+		setupAuth       func(t *testing.T, request *http.Request, tokenMaker token.Maker)
 		buildStubs      func(store *mockdb.MockStore)
 		checkResponse   func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
@@ -32,6 +36,10 @@ func TestGetAccountAPI(t *testing.T) {
 			accountPublicID: account.PublicID,
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Eq(account.PublicID)).Times(1).Return(account, nil)
+				store.EXPECT().GetUserByPublicID(gomock.Any(), gomock.Eq(user.PublicID)).Times(1).Return(user, nil)
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorisation(t, request, tokenMaker, authorisationTypeBearer, user.PublicID, time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -44,6 +52,9 @@ func TestGetAccountAPI(t *testing.T) {
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Eq(account.PublicID)).Times(1).Return(db.Account{}, sql.ErrNoRows)
 			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorisation(t, request, tokenMaker, authorisationTypeBearer, user.PublicID, time.Minute)
+			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusNotFound, recorder.Code)
 			},
@@ -54,6 +65,9 @@ func TestGetAccountAPI(t *testing.T) {
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Eq(account.PublicID)).Times(1).Return(db.Account{}, sql.ErrConnDone)
 			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorisation(t, request, tokenMaker, authorisationTypeBearer, user.PublicID, time.Minute)
+			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusInternalServerError, recorder.Code)
 			},
@@ -63,6 +77,9 @@ func TestGetAccountAPI(t *testing.T) {
 			accountPublicID: "not-a-valid-uuid",
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Any()).Times(0)
+			},
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				addAuthorisation(t, request, tokenMaker, authorisationTypeBearer, user.PublicID, time.Minute)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusBadRequest, recorder.Code)
@@ -89,6 +106,7 @@ func TestGetAccountAPI(t *testing.T) {
 
 			require.NoError(t, err)
 
+			tc.setupAuth(t, request, server.tokenMaker)
 			server.router.ServeHTTP(recorder, request)
 
 			// check response
@@ -98,11 +116,11 @@ func TestGetAccountAPI(t *testing.T) {
 
 }
 
-func createRandomAccount() db.Account {
+func createRandomAccount(userID int32) db.Account {
 	return db.Account{
 		ID:       int32(utils.RandomInt(1, 1000)),
 		PublicID: uuid.New().String(),
-		UserID:   int32(utils.RandomInt(1, 1000)),
+		UserID:   userID,
 		Balance:  utils.RandomAmount(),
 		Currency: utils.RandomCurrency(),
 	}
