@@ -2,11 +2,12 @@ package main
 
 import (
 	"database/sql"
+	"log"
+
 	_ "github.com/lib/pq"
 	"github.com/varsilias/simplebank/api"
 	db "github.com/varsilias/simplebank/db/sqlc"
 	"github.com/varsilias/simplebank/utils"
-	"log"
 )
 
 func main() {
@@ -22,7 +23,11 @@ func main() {
 	}
 
 	store := db.NewStore(conn)
-	server := api.NewServer(store)
+	server, err := api.NewServer(store, config)
+
+	if err != nil {
+		log.Fatal("cannot create server: ", err)
+	}
 
 	err = server.Start(config.ServerAddress)
 	if err != nil {

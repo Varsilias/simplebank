@@ -2,7 +2,9 @@ package api
 
 import (
 	// "database/sql"
+	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -100,6 +102,81 @@ func (server *Server) registerUser(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, successResponse(toUserResponse(user, account)))
 }
 
+type loginUserRequest struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+type loginUserResponse struct {
+	ID             int32                    `json:"id"`
+	Email          string                   `json:"email"`
+	PublicID       string                   `json:"public_id"`
+	CreatedAt      time.Time                `json:"created_at"`
+	UpdatedAt      time.Time                `json:"updated_at"`
+	Firstname      string                   `json:"firstname"`
+	Lastname       string                   `json:"lastname"`
+	EmailConfirmed bool                     `json:"email_confirmed"`
+	Accounts       []*createAccountResponse `json:"accounts"`
+}
+
+type loginResponse struct {
+	AccessToken string            `json:"access_token"`
+	User        loginUserResponse `json:"user"`
+}
+
+func (server *Server) login(ctx *gin.Context) {
+	var req loginUserRequest
+	err := ctx.ShouldBindJSON(&req)
+
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, errorResponse(http.StatusBadRequest, ctx.Request.URL.Path, err))
+		return
+	}
+
+	user, err := server.store.GetUserByEmail(ctx, req.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			clientErr := fmt.Errorf("invalid credentials")
+			ctx.JSON(http.StatusUnauthorized, errorResponse(http.StatusUnauthorized, ctx.Request.URL.Path, clientErr))
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
+	isPasswordMatch, err := utils.VerifyPassword(req.Password, user.Password, user.Salt)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
+	if !isPasswordMatch {
+		clientErr := fmt.Errorf("invalid credentials")
+		ctx.JSON(http.StatusUnauthorized, errorResponse(http.StatusUnauthorized, ctx.Request.URL.Path, clientErr))
+		return
+	}
+
+	accounts, err := server.store.GetAllUserAccounts(ctx, user.ID)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+
+	accessToken, err := server.tokenMaker.CreateToken(user.PublicID, server.config.AccessTokenDuration)
+
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, errorResponse(http.StatusInternalServerError, ctx.Request.URL.Path, err))
+		return
+	}
+	var accountsResponse = make([]*createAccountResponse, 0)
+	for _, a := range accounts {
+		accountsResponse = append(accountsResponse, toAccountResponse(a))
+	}
+	ctx.JSON(http.StatusOK, successResponse(toLoginResponse(accessToken, user, accountsResponse)))
+}
+
 // Convert User model to the Response struct
 func toUserResponse(user db.User, account *createAccountResponse) *createUserResponse {
 	var blockedAt, deletedAt, securityTokenRequestedAt *string
@@ -141,5 +218,22 @@ func toUserResponse(user db.User, account *createAccountResponse) *createUserRes
 		EmailConfirmed:           user.EmailConfirmed.Bool,
 		SecurityTokenRequestedAt: securityTokenRequestedAt,
 		AccountDetail:            account,
+	}
+}
+
+func toLoginResponse(accessToken string, user db.User, accounts []*createAccountResponse) *loginResponse {
+	return &loginResponse{
+		AccessToken: accessToken,
+		User: loginUserResponse{
+			ID:             user.ID,
+			Email:          user.Email,
+			PublicID:       user.PublicID,
+			Firstname:      user.Firstname,
+			Lastname:       user.Lastname,
+			CreatedAt:      user.CreatedAt,
+			UpdatedAt:      user.UpdatedAt,
+			EmailConfirmed: user.EmailConfirmed.Bool,
+			Accounts:       accounts,
+		},
 	}
 }
