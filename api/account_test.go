@@ -50,6 +50,7 @@ func TestGetAccountAPI(t *testing.T) {
 			name:            "NotFound",
 			accountPublicID: account.PublicID,
 			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().GetUserByPublicID(gomock.Any(), gomock.Eq(user.PublicID)).Times(1).Return(user, nil)
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Eq(account.PublicID)).Times(1).Return(db.Account{}, sql.ErrNoRows)
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
@@ -63,6 +64,7 @@ func TestGetAccountAPI(t *testing.T) {
 			name:            "InternalServerError",
 			accountPublicID: account.PublicID,
 			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().GetUserByPublicID(gomock.Any(), gomock.Eq(user.PublicID)).Times(1).Return(user, nil)
 				store.EXPECT().GetAccountByPublicId(gomock.Any(), gomock.Eq(account.PublicID)).Times(1).Return(db.Account{}, sql.ErrConnDone)
 			},
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
