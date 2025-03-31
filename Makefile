@@ -1,4 +1,4 @@
-startdb:
+start:
 	docker compose up -d
 	
 migrate:
@@ -45,4 +45,4 @@ mock:
 	mockgen -destination db/mock/store.go -package mockdb github.com/varsilias/simplebank/db/sqlc Store
 
 
-.PHONY: startdb migrate rollback migrate-one rollback-one sqlc test env server mock
+.PHONY: start migrate rollback migrate-one rollback-one sqlc test env server mock

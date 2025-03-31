@@ -2,9 +2,9 @@ version: "3.9"
 
 services:
   postgres:
-    container_name: simplebank-postgres
+    container_name: postgres16
     image: postgres:16.2
-    restart: always
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -12,32 +12,34 @@ services:
       POSTGRES_DB: $DB_NAME
       POSTGRES_USER: $DB_USER
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
-
     networks:
       - simplebank_network
     volumes:
       - $HOME/data/postgresql/simplebank:/var/lib/postgresql/data
     ports:
       - "$DB_PORT:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
 
-  simplebank:
-    container_name: simplebank-api-core
+  api:
+    container_name: api
     build:
       context: .
       dockerfile: Dockerfile
-      # target: builder
-    env_file:
-      - .env
-    # ports:
-    #   - "$PORT:$PORT"
+    environment:
+      - DB_URL=postgresql://$DB_USER:$DB_PASSWORD@postgres:5432/$DB_NAME?sslmode=disable
+    ports:
+      - "8000:8000"
     depends_on:
-      - postgres
-    volumes:
-      - .:/usr/src/app # any change to base folder should be reflected
-      # - /usr/src/app/go.mod
+      postgres:
+        condition: service_healthy
+
     networks:
       - simplebank_network
-    command: /usr/src/app/main # overrides CMD from dockerfile
 
 networks:
   simplebank_network:

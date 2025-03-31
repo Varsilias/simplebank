@@ -1,13 +1,12 @@
-name: CI Test
+name: Run Unit Test
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
 jobs:
-
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -34,19 +33,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '^1.20'
+          go-version: "^1.20"
         id: go
 
       - name: Create env file
         run: |
-            echo "${{ secrets.TEST_ENV_FILE }}" > .env
-            cat .env
+          echo "${{ secrets.TEST_ENV_FILE }}" > .env
+          cat .env
 
       - name: Install golang-migrate
-        run: | 
-            curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xvz
-            sudo mv migrate /usr/bin
-            which migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/bin
+          which migrate
 
       - name: Run DB Migrations
         run: make migrate
