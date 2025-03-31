@@ -17,6 +17,11 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Create env file
+        run: |
+          echo "${{ secrets.PROD_ENV_FILE }}" > .env
+          cat .env
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
