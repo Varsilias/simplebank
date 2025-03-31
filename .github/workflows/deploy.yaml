@@ -4,7 +4,7 @@ on:
   push:
     branches: ["master"]
 env:
-  AWS_REGION: "eu-north-1"
+  AWS_REGION: eu-north-1
 
 permissions:
   id-token: write # This is required for requesting the JWT
