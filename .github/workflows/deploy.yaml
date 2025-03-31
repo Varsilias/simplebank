@@ -3,6 +3,12 @@ name: Deploy to Production
 on:
   push:
     branches: ["master"]
+env:
+  AWS_REGION: "eu-north-1"
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read
 
 jobs:
   build:
@@ -10,11 +16,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::793909179597:role/GitHubAction-AssumeRoleWithAction
-          aws-region: eu-north-1
+          aws-region: env.AWS_REGION
 
       - name: Login to Amazon ECR
         id: login-ecr
